@@ -1,11 +1,21 @@
 #!/bin/sh
+#
+# run from wrapper.sh to set XDG_RUNTIME_DIR & friends
 
-export XDG_RUNTIME_DIR="/run/user/$UID"
-#export DBUS_SESSION_BUS_ADDRESS="unix:path=${XDG_RUNTIME_DIR}/bus"
+echo "* XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR"
+echo "* DBUS_SESSION_BUS_ADDRESS=$DBUS_SESSION_BUS_ADDRESS"
 
-systemd --user --log-level=debug
+##systemd --user --log-level=debug
 #dbus-run-session -- bash
 
 #dbus-run-session -- systemd --user --log-level=debug
 
-find /sys/fs/cgroup/systemd/user.slice/user-1001.slice
+##find /sys/fs/cgroup/systemd/user.slice/user-1001.slice
+
+sleep 2
+systemctl --user status
+#systemctl --user enable
+
+systemd --user --log-level=debug
+
+sleep 999

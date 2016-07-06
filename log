@@ -1,0 +1,13 @@
+[dbus launch]
+* XDG_RUNTIME_DIR=/run/user/1001
+* DBUS_SESSION_BUS_ADDRESS=unix:abstract=/tmp/dbus-JQcjVRVCx0,guid=0c72e9d671d3ddef4cf41098577d2b8b
+Activating service name='org.freedesktop.systemd1'
+Activated service 'org.freedesktop.systemd1' failed: Process org.freedesktop.systemd1 exited with status 1
+Failed to read server status: Eingabe-/Ausgabefehler
+systemd 230 running in user mode for user 1001/alfred. (+PAM +AUDIT +SELINUX +IMA +APPARMOR +SMACK +SYSVINIT +UTMP +LIBCRYPTSETUP +GCRYPT +GNUTLS +ACL +XZ -LZ4 +SECCOMP +BLKID +ELFUTILS +KMOD -IDN)
+Using cgroup controller name=systemd. File system hierarchy is at /sys/fs/cgroup/systemd/user.slice/user-1000.slice/session-99.scope.
+Failed to create /user.slice/user-1000.slice/session-99.scope/init.scope control group: Permission denied
+Failed to allocate manager object: Permission denied
+
+^Ctrap
+[dbus terminate]
