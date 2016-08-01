@@ -4,10 +4,14 @@ import sys
 import os
 import subprocess
 import pickle
+import time
+import signal
 
 class ProcMan:
 	def __init__(self):
 		self.processes = {}
+		self.parents = {}
+		self.procnames = {}
 
 		self.load()
 
@@ -19,6 +23,8 @@ class ProcMan:
 		else:
 			self.processes = pickle.load(f)
 
+		self.scanproc()
+
 	def save(self):
 		try:
 			f = open(".procmandb", "wb")
@@ -27,21 +33,102 @@ class ProcMan:
 		else:
 			pickle.dump(self.processes, f)
 
+	def scanproc(self):
+		procdir = "/proc"
+		for subdir in os.listdir(procdir):
+			if subdir in ("self",):
+				continue
+			statusfile = os.path.join(procdir, subdir, "status")
+			if os.path.isfile(statusfile):
+				f = open(statusfile)
+				procname = None
+				while True:
+					line = f.readline().strip()
+					if line.startswith("PPid:"):
+						ppid = line.split("\t")[1]
+						self.parents[int(subdir)] = int(ppid)
+						self.procnames[int(subdir)] = procname
+						break
+					if line.startswith("Name:"):
+						procname = line.split("\t")[1]
+
 	def start(self, argv):
 		x = subprocess.Popen(argv)
-		print("launched {0} => {1}".format(str(argv), x.pid))
+		self.printline("launched {0} => {1}".format(str(argv), x.pid), True)
 		self.processes[x.pid] = argv
 		self.save()
 
+	def stop(self, argv):
+		for pid, pargv in self.processes.items():
+			if pargv == argv:
+				killlist = [pid]
+				for cpid in self.parents:
+					if self.parents[cpid] == pid:
+						killlist.append(cpid)
+				self.printline("kill {0}".format(str(killlist)), True)
+				for kpid in killlist:
+					try:
+						os.kill(kpid, signal.SIGTERM)
+					except:
+						pass
+				time.sleep(1)
+				for kpid in killlist:
+					try:
+						os.kill(kpid, signal.SIGKILL)
+					except:
+						pass
+				return
+		self.printline("Unknown command, not found.", False)
+
 	def status(self):
+		deadlist = []
 		for pid in self.processes:
-			alive = os.path.isdir("/proc/{0}".format(pid))
+			pgid = self.statuspid(pid)
+			if pgid != -1:
+				self.printstatus(pid, pgid)
+				self.recursepid(pid)
+			else:
+				deadlist.append(pid)
+		for pid in deadlist:
+			self.printstatus(pid, -1)
+			del self.processes[pid]
+		self.save()
+
+	def recursepid(self, pid, indent=0):
+			for cpid in self.parents:
+				if self.parents[cpid] == pid:
+					pgid = self.statuspid(cpid)
+					self.printstatus(cpid, pgid, indent + 1)
+					self.recursepid(cpid, indent + 1)
+
+	def statuspid(self, pid):
+			#alive = os.path.isdir("/proc/{0}".format(pid))
 			try:
 				pgid = os.getpgid(pid)
 			except:
 				pgid = -1
+			return pgid
+
+	def printstatus(self, pid, pgid, indent=0):
+			alive = (pgid != -1)
 			status = "pgid={0} alive={1}".format(pgid, alive)
-			print("check {0} => {1}: {2}".format(pid, self.processes[pid], status))
+			if pid in self.processes:
+				procname = self.processes[pid]
+			else:
+				if pid in self.procnames:
+					procname = "({0})".format(self.procnames[pid])
+				else:
+					procname = "<unknown>"
+			printline = "{3}check {0} => {1}: {2}".format(pid, procname, status, " " * indent)
+			self.printline(printline, alive)
+
+	def printline(self, printline, active):
+			if active:
+				col = "\x1b[32m"
+			else:
+				col = "\x1b[36m"
+			colreset = "\x1b[0m"
+			print("{0}{1}{2}".format(col, printline, colreset))
 
 	def parseargs(self):
 		if len(sys.argv) >= 2:
@@ -51,7 +138,10 @@ class ProcMan:
 				else:
 					return 1
 			elif sys.argv[1] == "stop":
-				pass
+				if len(sys.argv) >= 3:
+					self.stop(sys.argv[2:])
+				else:
+					return 1
 			elif sys.argv[1] == "status":
 				self.status()
 			else:
