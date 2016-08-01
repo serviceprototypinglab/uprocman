@@ -189,8 +189,28 @@ class ProcMan:
 			else:
 				return 1
 		else:
-			print("procman [-t tenant] start|stop|status <app/unit>")
+			print("procman [-t tenant] start|stop <app/unit> / status / supervise")
 			return 1
+
+	def supervise(self):
+		#import pyinotify
+		#class Handler(pyinotify.ProcessEvent):
+		#	def process_IN_DELETE(self, event):
+		#		print("// removing", event.pathname)
+		#handler = Handler()
+		#wm = pyinotify.WatchManager()
+		#notifier = pyinotify.Notifier(wm, handler)
+		#wm.add_watch("/proc/5485", pyinotify.ALL_EVENTS, rec=True)
+		#notifier.loop()
+
+		while True:
+			time.sleep(30)
+			self.load(self.tenant)
+			for pid in self.processes:
+				pgid = self.statuspid(pid)
+				if pgid == -1:
+					self.printline("dead process detected: {0}".format(pid), False)
+					os.system(sys.argv[0] + " status")
 
 	def lockparseargs(self):
 		tenant = None
@@ -199,6 +219,11 @@ class ProcMan:
 			tenant = sys.argv[pos + 1]
 			del sys.argv[pos]
 			del sys.argv[pos]
+
+		if len(sys.argv) >= 2 and sys.argv[1] == "supervise":
+			self.load(tenant)
+			self.supervise()
+			return
 
 		while True:
 			try:
