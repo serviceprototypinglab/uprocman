@@ -10,6 +10,8 @@ import signal
 class ProcMan:
 	def __init__(self):
 		self.processes = {}
+		self.starttimes = {}
+
 		self.parents = {}
 		self.procnames = {}
 
@@ -21,7 +23,7 @@ class ProcMan:
 		except:
 			pass
 		else:
-			self.processes = pickle.load(f)
+			[self.processes, self.starttimes] = pickle.load(f)
 
 		self.scanproc()
 
@@ -31,7 +33,7 @@ class ProcMan:
 		except:
 			pass
 		else:
-			pickle.dump(self.processes, f)
+			pickle.dump([self.processes, self.starttimes], f)
 
 	def scanproc(self):
 		procdir = "/proc"
@@ -56,7 +58,15 @@ class ProcMan:
 		x = subprocess.Popen(argv)
 		self.printline("launched {0} => {1}".format(str(argv), x.pid), True)
 		self.processes[x.pid] = argv
+		self.starttimes[x.pid] = self.starttime(x.pid)
 		self.save()
+
+	def starttime(self, pid):
+		try:
+			starttime = int(open("/proc/{0}/stat".format(pid)).read().split(" ")[21])
+		except:
+			starttime = 0
+		return starttime
 
 	def stop(self, argv):
 		for pid, pargv in self.processes.items():
@@ -107,11 +117,21 @@ class ProcMan:
 				pgid = os.getpgid(pid)
 			except:
 				pgid = -1
+			else:
+				if pid in self.processes:
+					starttime = self.starttime(pid)
+					if starttime != self.starttimes[pid]:
+						self.printline("(pid cycling for {0})".format(pid), False)
+						pgid = -1
 			return pgid
 
 	def printstatus(self, pid, pgid, indent=0):
 			alive = (pgid != -1)
-			status = "pgid={0} alive={1}".format(pgid, alive)
+			if pid in self.starttimes:
+				starttime = self.starttimes[pid]
+			else:
+				starttime = "<unknown>"
+			status = "pgid={0} alive={1} start={2}".format(pgid, alive, starttime)
 			if pid in self.processes:
 				procname = self.processes[pid]
 			else:
