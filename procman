@@ -15,11 +15,13 @@ class ProcMan:
 		self.parents = {}
 		self.procnames = {}
 
-		self.load()
+		#self.load()
+		self.tenant = None
 
-	def load(self):
+	def load(self, tenant=None):
+		self.tenant = tenant
 		try:
-			f = open(".procmandb", "rb")
+			f = open(self.persistencefile(tenant), "rb")
 		except:
 			pass
 		else:
@@ -29,11 +31,20 @@ class ProcMan:
 
 	def save(self):
 		try:
-			f = open(".procmandb", "wb")
+			f = open(self.persistencefile(self.tenant), "wb")
 		except:
 			pass
 		else:
 			pickle.dump([self.processes, self.starttimes], f)
+
+	def persistencefile(self, tenant):
+		return ".procman{0}.db".format(("", ".{0}".format(tenant))[tenant is not None])
+
+	def logfile(self, tenant):
+		return ".procman{0}.log".format(("", ".{0}".format(tenant))[tenant is not None])
+
+	def lockdir(self, tenant):
+		return ".procman{0}.lock".format(("", ".{0}".format(tenant))[tenant is not None])
 
 	def scanproc(self):
 		procdir = "/proc"
@@ -101,8 +112,17 @@ class ProcMan:
 				deadlist.append(pid)
 		for pid in deadlist:
 			self.printstatus(pid, -1)
+			self.accounting(pid)
 			del self.processes[pid]
+			del self.starttimes[pid]
 		self.save()
+
+	def accounting(self, pid):
+		f = open(self.logfile(self.tenant), "a")
+		start = self.starttimes[pid]
+		stop = int(float(open("/proc/uptime").read().split(" ")[0]) * 100)
+		diff = (stop - start) / 100
+		print("start={0} stop={1} duration={2} command={3}".format(start, stop, diff, self.processes[pid]), file=f)
 
 	def recursepid(self, pid, indent=0):
 			for cpid in self.parents:
@@ -150,7 +170,9 @@ class ProcMan:
 			colreset = "\x1b[0m"
 			print("{0}{1}{2}".format(col, printline, colreset))
 
-	def parseargs(self):
+	def parseargs(self, tenant):
+		self.load(tenant)
+
 		if len(sys.argv) >= 2:
 			if sys.argv[1] == "start":
 				if len(sys.argv) >= 3:
@@ -167,8 +189,26 @@ class ProcMan:
 			else:
 				return 1
 		else:
-			print("procman start|stop|status <app/unit>")
+			print("procman [-t tenant] start|stop|status <app/unit>")
 			return 1
 
+	def lockparseargs(self):
+		tenant = None
+		if "-t" in sys.argv:
+			pos = sys.argv.index("-t")
+			tenant = sys.argv[pos + 1]
+			del sys.argv[pos]
+			del sys.argv[pos]
+
+		while True:
+			try:
+				os.mkdir(self.lockdir(tenant))
+			except FileExistsError:
+				time.sleep(1)
+			else:
+				self.parseargs(tenant)
+				os.rmdir(self.lockdir(tenant))
+				break
+
 pm = ProcMan()
-sys.exit(pm.parseargs())
+sys.exit(pm.lockparseargs())
