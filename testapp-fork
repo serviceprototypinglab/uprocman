@@ -1,0 +1,6 @@
+#!/bin/bash
+#
+# Launches a child process. Both parent and child run for about 200 seconds.
+
+(sleep 200) &
+sleep 200

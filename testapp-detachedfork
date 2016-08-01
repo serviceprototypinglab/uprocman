@@ -1,0 +1,6 @@
+#!/bin/bash
+#
+# Launches two child processes. Both parent and child run for about 100 seconds and are detached.
+
+nohup sleep 101 >/dev/null &
+setsid sleep 102
