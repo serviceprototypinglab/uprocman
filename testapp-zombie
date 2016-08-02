@@ -1,0 +1,7 @@
+#!/bin/bash
+#
+# Launches a child process and kills itself. Child reparents to init as zombie.
+
+sleep 99 &
+
+kill $$
