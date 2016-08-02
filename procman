@@ -66,6 +66,9 @@ class ProcMan:
 						procname = line.split("\t")[1]
 
 	def start(self, argv):
+		os.putenv("PROCMANLOG", ".procman.pid")
+		argv = ["./tracer/procman-tracetest.sh"] + argv
+
 		x = subprocess.Popen(argv)
 		self.printline("launched {0} => {1}".format(str(argv), x.pid), True)
 		self.processes[x.pid] = argv
@@ -115,6 +118,9 @@ class ProcMan:
 			self.accounting(pid)
 			del self.processes[pid]
 			del self.starttimes[pid]
+			pidfile = ".procman.pid.{0}".format(pid)
+			if os.path.isfile(pidfile):
+				os.unlink(pidfile)
 		self.save()
 
 	def accounting(self, pid):
@@ -124,12 +130,35 @@ class ProcMan:
 		diff = (stop - start) / 100
 		print("start={0} stop={1} duration={2} command={3}".format(start, stop, diff, self.processes[pid]), file=f)
 
+	def findzombies(self, pid):
+		zombies = []
+		pidfile = ".procman.pid.{0}".format(pid)
+		if os.path.isfile(pidfile):
+			lines = open(pidfile).readlines()
+			for line in lines:
+				line = line.strip()
+				op = line[0]
+				zpid = line[1:]
+				if zpid in ("exited", "killed"):
+					return []
+				elif op == "+":
+					zombies.append(zpid)
+				elif op == "-":
+					if zpid in zombies:
+						zombies.remove(zpid)
+		return zombies
+
 	def recursepid(self, pid, indent=0):
 			for cpid in self.parents:
 				if self.parents[cpid] == pid:
 					pgid = self.statuspid(cpid)
 					self.printstatus(cpid, pgid, indent + 1)
 					self.recursepid(cpid, indent + 1)
+			zombies = self.findzombies(pid)
+			for cpid in zombies:
+				pgid = self.statuspid(cpid)
+				self.printstatus(cpid, pgid, indent + 1)
+				self.recursepid(cpid, indent + 1)
 
 	def statuspid(self, pid):
 			#alive = os.path.isdir("/proc/{0}".format(pid))

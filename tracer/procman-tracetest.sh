@@ -12,7 +12,16 @@ then
 	exit 2
 fi
 
-if [ -t 1 ]
+if [ ! -z "$PROCMANLOG" ]
+then
+	#exec 1>$PROCMANLOG
+	out=$PROCMANLOG.$$
+	:> $out
+else
+	out=/dev/stdout
+fi
+
+if [ -t 1 ] && [ -z "$PROCMANLOG" ]
 then
 	cola="\x1b[36m"
 	colk="\x1b[31m"
@@ -30,7 +39,7 @@ do
 	if [ $? = 0 ]
 	then
 		pid=`echo $line | cut -d " " -f 3`
-		echo -e "$cola$pid$colr"
+		echo -e "${cola}+$pid$colr" >> $out
 	fi
 	echo $line | grep -q "killed"
 	if [ $? != 0 ]
@@ -40,6 +49,6 @@ do
 	if [ $? = 0 ]
 	then
 		pid=`echo $line | cut -d " " -f 2 | cut -d "]" -f 1`
-		echo -e "$colk$pid$colr"
+		echo -e "${colk}-$pid$colr" >> $out
 	fi
 done
