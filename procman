@@ -49,7 +49,7 @@ class ProcMan:
 	def scanproc(self):
 		procdir = "/proc"
 		for subdir in os.listdir(procdir):
-			if subdir in ("self",):
+			if subdir in ("self", "thread-self"):
 				continue
 			statusfile = os.path.join(procdir, subdir, "status")
 			if os.path.isfile(statusfile):
@@ -231,7 +231,10 @@ class ProcMan:
 			except FileExistsError:
 				time.sleep(1)
 			else:
-				self.parseargs(tenant)
+				try:
+					self.parseargs(tenant)
+				except Exception as e:
+					print(e)
 				os.rmdir(self.lockdir(tenant))
 				break
 
