@@ -17,6 +17,7 @@ class ProcMan:
 
 		#self.load()
 		self.tenant = None
+		self.tracing = False
 
 	def load(self, tenant=None):
 		self.tenant = tenant
@@ -66,8 +67,9 @@ class ProcMan:
 						procname = line.split("\t")[1]
 
 	def start(self, argv):
-		os.putenv("PROCMANLOG", ".procman.pid")
-		argv = ["./tracer/procman-tracetest.sh"] + argv
+		if self.tracing:
+			os.putenv("PROCMANLOG", ".procman.pid")
+			argv = ["./tracer/procman-tracetest.sh"] + argv
 
 		x = subprocess.Popen(argv)
 		self.printline("launched {0} => {1}".format(str(argv), x.pid), True)
@@ -218,7 +220,7 @@ class ProcMan:
 			else:
 				return 1
 		else:
-			print("procman [-t tenant] start|stop <app/unit> / status / supervise")
+			print("procman [-t tenant] [-T] start|stop <app/unit> / status / supervise")
 			return 1
 
 	def supervise(self):
@@ -247,6 +249,11 @@ class ProcMan:
 			pos = sys.argv.index("-t")
 			tenant = sys.argv[pos + 1]
 			del sys.argv[pos]
+			del sys.argv[pos]
+
+		if "-T" in sys.argv:
+			pos = sys.argv.index("-T")
+			self.tracing = True
 			del sys.argv[pos]
 
 		if len(sys.argv) >= 2 and sys.argv[1] == "supervise":
