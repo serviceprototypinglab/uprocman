@@ -18,6 +18,9 @@ class ProcMan:
 		#self.load()
 		self.tenant = None
 		self.tracing = False
+		self.tracer = "./tracer/procman-tracetest.sh"
+
+		self.allpids = []
 
 	def load(self, tenant=None):
 		self.tenant = tenant
@@ -69,7 +72,7 @@ class ProcMan:
 	def start(self, argv):
 		if self.tracing:
 			os.putenv("PROCMANLOG", ".procman.pid")
-			argv = ["./tracer/procman-tracetest.sh"] + argv
+			argv = [self.tracer] + argv
 
 		x = subprocess.Popen(argv)
 		self.printline("launched {0} => {1}".format(str(argv), x.pid), True)
@@ -86,7 +89,8 @@ class ProcMan:
 
 	def stop(self, argv):
 		for pid, pargv in self.processes.items():
-			if pargv == argv:
+			targv = [self.tracer] + argv
+			if pargv == argv or pargv == targv:
 				killlist = [pid]
 				for cpid in self.parents:
 					if self.parents[cpid] == pid:
@@ -150,7 +154,11 @@ class ProcMan:
 						zombies.remove(zpid)
 		return zombies
 
-	def recursepid(self, pid, indent=0):
+	def recursepid(self, pid, indent=0, zombie=False):
+			if indent == 0:
+				self.allpids = [pid]
+			else:
+				self.allpids.append(pid)
 			for cpid in self.parents:
 				if self.parents[cpid] == pid:
 					pgid = self.statuspid(cpid)
@@ -158,9 +166,11 @@ class ProcMan:
 					self.recursepid(cpid, indent + 1)
 			zombies = self.findzombies(pid)
 			for cpid in zombies:
+				if cpid in self.allpids:
+					continue
 				pgid = self.statuspid(cpid)
-				self.printstatus(cpid, pgid, indent + 1)
-				self.recursepid(cpid, indent + 1)
+				self.printstatus(cpid, pgid, indent + 1, True)
+				self.recursepid(cpid, indent + 1, True)
 
 	def statuspid(self, pid):
 			#alive = os.path.isdir("/proc/{0}".format(pid))
@@ -176,7 +186,7 @@ class ProcMan:
 						pgid = -1
 			return pgid
 
-	def printstatus(self, pid, pgid, indent=0):
+	def printstatus(self, pid, pgid, indent=0, zombie=False):
 			alive = (pgid != -1)
 			if pid in self.starttimes:
 				starttime = self.starttimes[pid]
@@ -186,7 +196,7 @@ class ProcMan:
 			wrapper = False
 			if pid in self.processes:
 				procname = self.processes[pid]
-				wrapper = "procman-tracetest.sh" in procname[0]
+				wrapper = self.tracer in procname[0]
 				if wrapper and not self.tracing:
 					wrapper = False
 					procname = procname[1:]
@@ -197,9 +207,9 @@ class ProcMan:
 				else:
 					procname = "<unknown>"
 			printline = "{3}check {0} => {1}: {2}".format(pid, procname, status, " " * indent)
-			self.printline(printline, alive, wrapper)
+			self.printline(printline, alive, wrapper, zombie)
 
-	def printline(self, printline, active, wrapper=False):
+	def printline(self, printline, active, wrapper=False, zombie=False):
 			if wrapper and not self.tracing:
 				return
 			if active:
@@ -209,6 +219,8 @@ class ProcMan:
 			colreset = "\x1b[0m"
 			if wrapper:
 				printline = printline + "\x1b[1;33m" + " ***" + colreset
+			if zombie and self.tracing:
+				printline = printline + "\x1b[1;33m" + " Z" + colreset
 			print("{0}{1}{2}".format(col, printline, colreset))
 
 	def parseargs(self, tenant):
