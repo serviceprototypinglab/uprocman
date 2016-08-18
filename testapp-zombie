@@ -4,4 +4,6 @@
 
 sleep 99 &
 
+sleep 5
+
 kill $$
