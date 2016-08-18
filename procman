@@ -325,10 +325,12 @@ class ProcMan:
 			except FileExistsError:
 				time.sleep(1)
 			else:
-				try:
-					self.parseargs(tenant)
-				except Exception as e:
-					print(e)
+				# Note: showing full trace while still under development
+				# (e.g. useful to show .lock still exists after crash)
+				#try:
+				self.parseargs(tenant)
+				#except Exception as e:
+				#	print(e)
 				os.rmdir(self.lockdir(tenant))
 				break
 
