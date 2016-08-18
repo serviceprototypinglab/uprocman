@@ -1,0 +1,33 @@
+Procman - A user-friendly and user-level process manager
+Copyright (C) 2016 Zürcher Hochschule für Angewandte Wissenschaften
+https://blog.zhaw.ch/icclab/category/research-approach/themes/cloud-robotics/
+====================================================================
+
+Procman manages groups of processes launched through it. Child processes
+and former children turned into zombies are safely tracked and traced.
+All processes can be assigned to tenants with a per-tenant accounting
+of when and how long each process was invoked. This makes procman
+a suitable solution for when root access is not possible or desired
+and still a multi-tenant process management is needed.
+
+Invocation:
+-----------
+
+./procman start <...> starts an application process
+./procman -T start <...> does the same but wraps the execution into a tracer
+./procman -t <...> start <...> launches the process for a specific tenant
+
+./procman status shows the status of the launched processes, potentially of all tenants
+./procman -T status gives full insight into the tracing and zombie processes
+./procman -t <...> status limits the status view to one tenant
+
+./procman stop <...> stops the process again, no matter if -T was used or not
+./procman -t <...> stop <...> obviously does the same for a specific tenant
+
+Files:
+------
+tracer/procman-tracetest.sh is the working tracer (the python one does not work)
+.procman.db and .procman.<...>.db are the generic and tenant-specific pid lists
+.procman.log and .procman.<...>.log are the associated accounting logs
+.procman.pid.* are temporary tracer support files
+.procman.tenants is the list of tenants
