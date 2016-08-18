@@ -16,11 +16,30 @@ class ProcMan:
 		self.procnames = {}
 
 		#self.load()
+
+		self.loadtenants()
 		self.tenant = None
+
 		self.tracing = False
 		self.tracer = "./tracer/procman-tracetest.sh"
 
 		self.allpids = []
+
+	def loadtenants(self):
+		try:
+			f = open(".procman.tenants", "rb")
+		except:
+			self.tenants = []
+		else:
+			self.tenants = pickle.load(f)
+
+	def savetenants(self):
+		try:
+			f = open(".procman.tenants", "wb")
+		except:
+			pass
+		else:
+			pickle.dump(self.tenants, f)
 
 	def load(self, tenant=None):
 		self.tenant = tenant
@@ -74,6 +93,10 @@ class ProcMan:
 			os.putenv("PROCMANLOG", ".procman.pid")
 			argv = [self.tracer] + argv
 
+		if not self.tenant in self.tenants:
+			self.tenants.append(self.tenant)
+			self.savetenants()
+
 		x = subprocess.Popen(argv)
 		self.printline("launched {0} => {1}".format(str(argv), x.pid), True)
 		self.processes[x.pid] = argv
@@ -87,14 +110,21 @@ class ProcMan:
 			starttime = 0
 		return starttime
 
+	def recursekill(self, pid):
+		killlist = []
+		for cpid in self.parents:
+			if self.parents[cpid] == pid:
+				killlist.append(cpid)
+				killlist += self.recursekill(cpid)
+		return killlist
+
 	def stop(self, argv):
 		for pid, pargv in self.processes.items():
 			targv = [self.tracer] + argv
 			if pargv == argv or pargv == targv:
 				killlist = [pid]
-				for cpid in self.parents:
-					if self.parents[cpid] == pid:
-						killlist.append(cpid)
+				killlist += self.recursekill(pid)
+				killlist += [cpid for cpid in self.findzombies(pid) if not cpid in killlist]
 				self.printline("kill {0}".format(str(killlist)), False)
 				for kpid in killlist:
 					try:
@@ -238,7 +268,13 @@ class ProcMan:
 				else:
 					return 1
 			elif sys.argv[1] == "status":
-				self.status()
+				if not self.tenant and len(self.tenants) > 1:
+					for tenant in self.tenants:
+						self.load(tenant)
+						print("# TENANT: {0}".format(tenant))
+						self.status()
+				else:
+					self.status()
 			else:
 				return 1
 		else:
