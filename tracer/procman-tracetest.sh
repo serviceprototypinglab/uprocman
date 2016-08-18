@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # strace output:
-# strace: Process 16776 attached
+# strace: Process 16776 attached (strace 4.12/Debian)
+# Process 16776 attached (strace 4.8/Ubuntu)
 # [pid 16776] +++ killed by SIGTERM +++
 # [pid 18266] +++ exited with 0 +++
 # +++ exited with 0 +++ {for last remaining pid}
@@ -12,7 +13,16 @@ then
 	exit 2
 fi
 
-if [ -t 1 ]
+if [ ! -z "$PROCMANLOG" ]
+then
+	#exec 1>$PROCMANLOG
+	out=$PROCMANLOG.$$
+	:> $out
+else
+	out=/dev/stdout
+fi
+
+if [ -t 1 ] && [ -z "$PROCMANLOG" ]
 then
 	cola="\x1b[36m"
 	colk="\x1b[31m"
@@ -23,14 +33,21 @@ else
 	colr=""
 fi
 
-strace -e trace=fork -f $* 2>&1 | \
+# Note: application output is filtered away as it may interfere with strace output
+# (e.g. Process xxx attached may be shifted over a line output by roslaunch)
+strace -e trace=fork -f $* 2>&1 >/dev/null | \
 while read line
 do
 	echo $line | grep -q "attached"
 	if [ $? = 0 ]
 	then
 		pid=`echo $line | cut -d " " -f 3`
-		echo -e "$cola$pid$colr"
+		if [ $pid = "attached" ]
+		then
+			# Note: strace 4.8 syntax
+			pid=`echo $line | cut -d " " -f 2`
+		fi
+		echo -e "${cola}+$pid$colr" >> $out
 	fi
 	echo $line | grep -q "killed"
 	if [ $? != 0 ]
@@ -40,6 +57,6 @@ do
 	if [ $? = 0 ]
 	then
 		pid=`echo $line | cut -d " " -f 2 | cut -d "]" -f 1`
-		echo -e "$colk$pid$colr"
+		echo -e "${colk}-$pid$colr" >> $out
 	fi
 done
