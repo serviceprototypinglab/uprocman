@@ -1,14 +1,18 @@
-Procman - A user-friendly and user-level process manager
+UProcman - A user-friendly and user-level process manager
 Copyright (C) 2016 Zürcher Hochschule für Angewandte Wissenschaften
 https://blog.zhaw.ch/icclab/category/research-approach/themes/cloud-robotics/
 ====================================================================
 
-Procman manages groups of processes launched through it. Child processes
+UProcman manages groups of processes launched through it. Child processes
 and former children turned into zombies are safely tracked and traced.
 All processes can be assigned to tenants with a per-tenant accounting
-of when and how long each process was invoked. This makes procman
+of when and how long each process was invoked. This makes uprocman
 a suitable solution for when root access is not possible or desired
 and still a multi-tenant process management is needed.
+
+Note: This started out as procman, but as there are many procmans already,
+it is now named uprocman. Still the executable and all files are named
+procman.
 
 Invocation:
 -----------
